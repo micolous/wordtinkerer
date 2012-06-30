@@ -1,0 +1,13 @@
+*.pyc
+*.swp
+*~
+.DS_Store
+__MACOSX
+Thumbs.db
+desktop.ini
+*.ini
+*.orig
+build
+dist
+*.egg-info
+docs/_build
