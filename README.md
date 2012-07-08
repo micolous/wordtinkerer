@@ -36,8 +36,6 @@ Additional command line arguments `--help` will let you change the behaviours.
  * Page hierarchy, author or creation date isn't properly preserved.
  * Post categories and tags are not preserved.
  * Importing from Wordpress backup XML (do we want to support this?)
- * Having multiple `<h1>` tags in a post causes tinkerer to crash.  Should fix
-   our output so that it doesn't include this.
 
 ## licensing ##
 
