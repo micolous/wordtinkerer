@@ -5,13 +5,13 @@ Copyright (c) 2012 Michael Farrell
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met: 
+modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer. 
+	list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution. 
+	this list of conditions and the following disclaimer in the documentation
+	and/or other materials provided with the distribution.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -33,10 +33,48 @@ from os.path import exists, join
 from sys import exit
 import tinkerer.post
 import tinkerer.paths
+import tinkerer.page
+
+parent_slugs = {}
+
+
+def stripnl(i):
+	"Strips newline characters from the string."
+	return i.replace('\r', '').replace('\n', '')
+
 
 def nl2br(i):
 	"Emulate nl2br function from php, because Wordpress does this."
-	return i.replace('\r','').replace('\n\n', '<p>')
+	return i.replace('\r', '').replace('\n\n', '<p>')
+
+
+def get_path(conn, parent_id):
+	"Gets the parent slugs if we don't already know it."
+	global parent_slugs
+	if parent_id == 0:
+		return None
+	
+	if parent_id in parent_slugs:
+		return parent_slugs[parent_id]
+		
+	# we don't know, look it up
+	cur = conn.cursor()
+	cur.execute("""
+		SELECT post_name, post_parent
+		FROM wp_posts
+		WHERE id = %s
+		LIMIT 1
+	""", parent_id)
+	
+	slug, parent = cur.fetchone()
+	
+	pslug = get_path(conn, parent)
+	
+	if pslug:
+		slug = pslug + '/' + slug
+	
+	parent_slugs[parent_id] = slug
+	return slug
 
 
 def convert_blog(database, username, hostname, output_dir, password):
@@ -56,23 +94,46 @@ def convert_blog(database, username, hostname, output_dir, password):
 		password = None
 	
 	if password:
-		conn = MySQLdb.connect(host=hostname, user=username, db=database, passwd=password)
+		conn = MySQLdb.connect(
+			host=hostname, user=username, db=database, passwd=password
+		)
 	else:
 		conn = MySQLdb.connect(host=hostname, user=username, db=database)
 	
 	cur = conn.cursor()
 	
-	
-	cur.execute('SELECT id, post_date_gmt, post_content, post_title, post_name from wp_posts WHERE post_status=\'publish\' and post_type=\'post\'')
-	
+	# fetch all posts
+	cur.execute("""
+		SELECT id, post_date_gmt, post_content, post_title, post_name
+		FROM wp_posts
+		WHERE post_status='publish' and post_type='post'
+	""")
 	
 	for i, row in enumerate(cur):
-		print 'Post %d of %d: %s' % (i+1, cur.rowcount, row[3])
-		post = tinkerer.post.create(row[3].replace('\r','').replace('\n',''), date=row[1])
+		print 'Post %d of %d: %s' % (i + 1, cur.rowcount, row[3])
+		post = tinkerer.post.create(stripnl(row[3]), date=row[1])
 		
 		posttext = html2rst(nl2br(row[2])).decode('utf8')
 		post.write(content=posttext)
+
+	# fetch all pages
+	cur.execute("""
+		SELECT id, post_date_gmt, post_content, post_title, post_name
+		FROM wp_posts
+		WHERE post_status='publish' and post_type='page'
+	""")
+	
+	for i, row in enumerate(cur):
+		# TODO: implement date code
+		print 'Page %d of %d: %s' % (i + 1, cur.rowcount, row[3])
 		
+		# get full path
+		path = get_path(conn, row[0])
+		posttext = html2rst(nl2br(row[2])).decode('utf8')
+		
+		#print "path = %s" % path
+		page = tinkerer.page.Page(stripnl(row[3]), path, posttext)
+		page.write()
 	
 	#print cur.fetchall()
 	return True
@@ -81,11 +142,40 @@ def convert_blog(database, username, hostname, output_dir, password):
 def main():
 	parser = OptionParser(usage='%prog -D wordpress -u wordpress')
 	
-	parser.add_option('-D', '--database', dest='database', default='wordpress', help='Database where wordpress data is stored.')
-	parser.add_option('-u', '--username', dest='username', default='wordpress', help='Username to connect to wordpress database.')
-	parser.add_option('-H', '--hostname', dest='hostname', default='localhost', help='Hostname where MySQL is running.')
-	parser.add_option('-p', '--password', dest='password', default=False, action='store_true', help='Prompt for a password to connect to the database.')
-	parser.add_option('-o', '--output-directory', dest='output_dir', help='Destination directory for files.')
+	parser.add_option(
+		'-D', '--database',
+		dest='database',
+		default='wordpress',
+		help='Database where wordpress data is stored.'
+	)
+	
+	parser.add_option(
+		'-u', '--username',
+		dest='username',
+		default='wordpress',
+		help='Username to connect to wordpress database.'
+	)
+	
+	parser.add_option(
+		'-H', '--hostname',
+		dest='hostname',
+		default='localhost',
+		help='Hostname where MySQL is running.'
+	)
+	
+	parser.add_option(
+		'-p', '--password',
+		dest='password',
+		default=False,
+		action='store_true',
+		help='Prompt for a password to connect to the database.'
+	)
+	
+	parser.add_option(
+		'-o', '--output-directory',
+		dest='output_dir',
+		help='Destination directory for files.'
+	)
 	
 	options, args = parser.parse_args()
 	
@@ -94,14 +184,20 @@ def main():
 	
 	if not options.database:
 		parser.error('Database not specified.')
-		
+	
 	if not options.hostname:
 		parser.error('Hostname not specified.')
 		
 	if not options.output_dir:
 		parser.error('Output directory not specified.')
 		
-	r = convert_blog(options.database, options.username, options.hostname, options.output_dir, options.password)
+	r = convert_blog(
+		options.database,
+		options.username,
+		options.hostname,
+		options.output_dir,
+		options.password
+	)
 
 	if not r:
 		exit(1)
