@@ -146,8 +146,8 @@ def convert_blog(database, username, hostname, output_dir, password):
 		posttext = html2rst(nl2br(row[2])).decode('utf8')
 		
 		#print "path = %s" % path
-		page = tinkerer.page.Page(stripnl(row[3]), path, posttext)
-		page.write()
+		page = tinkerer.page.Page(stripnl(row[3]), path)
+		page.write(content=posttext)
 		
 		# add the page to the master document (from page.create)
 		tinkerer.master.append_doc(page.docname)
