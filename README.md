@@ -12,11 +12,11 @@ This is a work in progress and incomplete.
  * Python 2.7 (2.6 may work if you have my patches for Tinkerer).
  * python-mysqldb 
  * pandoc (used to convert HTML to Restructured Text)
- * mysql database with your Wordpress data
+ * MySQL database with your Wordpress data
 
 ## doesn't require ##
 
- * wordpress to be installed.
+ * Wordpress to be installed.
  * PHP
 
 ## running ##
@@ -33,7 +33,8 @@ Additional command line arguments `--help` will let you change the behaviours.
 
  * Image embedding.
  * Some Unicode issues.
- * Pages (only converts posts at the moment).
+ * Page hierarchy, author or creation date isn't properly preserved.
+ * Post categories and tags are not preserved.
  * Importing from Wordpress backup XML (do we want to support this?)
 
 ## licensing ##

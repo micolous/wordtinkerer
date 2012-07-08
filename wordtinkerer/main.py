@@ -34,8 +34,10 @@ from sys import exit
 import tinkerer.post
 import tinkerer.paths
 import tinkerer.page
+from progressbar import ProgressBar, Percentage, Bar, ETA
 
 parent_slugs = {}
+PBAR_WIDGET_STYLE = [Percentage(), Bar(), ETA()]
 
 
 def stripnl(i):
@@ -89,7 +91,7 @@ def convert_blog(database, username, hostname, output_dir, password):
 		
 	if password:
 		# TODO: mask input
-		password = raw_input('password?')
+		password = raw_input('password? ')
 	else:
 		password = None
 	
@@ -103,29 +105,40 @@ def convert_blog(database, username, hostname, output_dir, password):
 	cur = conn.cursor()
 	
 	# fetch all posts
+	print "Exporting blog posts..."
 	cur.execute("""
-		SELECT id, post_date_gmt, post_content, post_title, post_name
-		FROM wp_posts
+		SELECT p.id, p.post_date_gmt, p.post_content, p.post_title, 
+			u.user_nicename
+		FROM wp_posts p
+		LEFT JOIN wp_users u ON (p.post_author = u.id)
 		WHERE post_status='publish' and post_type='post'
 	""")
 	
+	progress = ProgressBar(widgets=PBAR_WIDGET_STYLE, maxval=cur.rowcount)
+	progress.start()
 	for i, row in enumerate(cur):
-		print 'Post %d of %d: %s' % (i + 1, cur.rowcount, row[3])
+		#print 'Post %d of %d: %s' % (i + 1, cur.rowcount, row[3])
+		progress.update(i)
 		post = tinkerer.post.create(stripnl(row[3]), date=row[1])
 		
 		posttext = html2rst(nl2br(row[2])).decode('utf8')
-		post.write(content=posttext)
+		post.write(content=posttext, author=row[4])
+	progress.finish()
 
 	# fetch all pages
+	print "Exporting pages..."
 	cur.execute("""
 		SELECT id, post_date_gmt, post_content, post_title, post_name
 		FROM wp_posts
 		WHERE post_status='publish' and post_type='page'
 	""")
 	
+	progress = ProgressBar(widgets=PBAR_WIDGET_STYLE, maxval=cur.rowcount)
+	progress.start()
 	for i, row in enumerate(cur):
 		# TODO: implement date code
-		print 'Page %d of %d: %s' % (i + 1, cur.rowcount, row[3])
+		progress.update(i)
+		#print 'Page %d of %d: %s' % (i + 1, cur.rowcount, row[3])
 		
 		# get full path
 		path = get_path(conn, row[0])
@@ -134,6 +147,7 @@ def convert_blog(database, username, hostname, output_dir, password):
 		#print "path = %s" % path
 		page = tinkerer.page.Page(stripnl(row[3]), path, posttext)
 		page.write()
+	progress.finish()
 	
 	#print cur.fetchall()
 	return True
