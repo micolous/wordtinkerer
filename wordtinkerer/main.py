@@ -34,6 +34,7 @@ from sys import exit
 import tinkerer.post
 import tinkerer.paths
 import tinkerer.page
+import tinkerer.master
 from progressbar import ProgressBar, Percentage, Bar, ETA
 
 parent_slugs = {}
@@ -147,6 +148,9 @@ def convert_blog(database, username, hostname, output_dir, password):
 		#print "path = %s" % path
 		page = tinkerer.page.Page(stripnl(row[3]), path, posttext)
 		page.write()
+		
+		# add the page to the master document (from page.create)
+		tinkerer.master.append_doc(page.docname)
 	progress.finish()
 	
 	#print cur.fetchall()
