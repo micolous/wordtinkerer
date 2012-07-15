@@ -31,8 +31,6 @@ Additional command line arguments `--help` will let you change the behaviours.
 
 ## outstanding issues to address ##
 
- * Image embedding.
- * Some Unicode issues.
  * Page hierarchy, author or creation date isn't properly preserved.
  * Post categories and tags are not preserved.
  * Importing from Wordpress backup XML (do we want to support this?)

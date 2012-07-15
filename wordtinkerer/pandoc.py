@@ -9,7 +9,7 @@ from subprocess import Popen, PIPE
 
 def html2rst(html):
 	p = Popen(
-		['pandoc', '--from=html', '--to=rst', '--base-header-level=2'],
+		['pandoc', '--from=html', '--to=rst'],
 		stdin=PIPE, stdout=PIPE
 	)
 
